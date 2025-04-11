@@ -49,8 +49,11 @@ GET /almanac/nextnight
 Return JSON data that contains the following data for the next night:
 - .host: name of the responding host.
 - .timestamp: time of the response, in seconds.
+- .almanac.priority: a priority level that matches the data quality.
 - .almanac.sunset: local time of sunset this day (string: HH:MM).
 - .almanac.sunrise: local time of sunrise next day(string: HH:MM).
+
+For this statically configured fallback service, the priority is always 1 (low).
 
 ```
 GET /almanac/selftest

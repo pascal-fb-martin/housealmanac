@@ -255,6 +255,8 @@ static const char *housealmanac_selftest (const char *method, const char *uri,
     echttp_json_add_integer (context, root, "timestamp", (long long)time(0));
     int top = echttp_json_add_object (context, root, "almanac");
 
+    echttp_json_add_integer (context, top, "priority", 1);
+
     RunningSelfTest = 1;
 
     int sunrise = echttp_json_add_array (context, top, "sunrise");
@@ -293,6 +295,8 @@ static const char *housealmanac_nextnight (const char *method, const char *uri,
     echttp_json_add_string (context, root, "proxy", houseportal_server());
     echttp_json_add_integer (context, root, "timestamp", (long long)now);
     int top = echttp_json_add_object (context, root, "almanac");
+
+    echttp_json_add_integer (context, top, "priority", 1);
 
     // Approximate today's sunset and tomorrow's sunrise.
     struct tm *today = localtime (&now);
