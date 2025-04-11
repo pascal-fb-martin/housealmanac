@@ -49,9 +49,8 @@
 #include "housedepositor.h"
 
 static int  UseHousePortal = 0;
-static int  RunningSelfTest = 0;
 
-#define DEBUG if (RunningSelfTest || echttp_isdebug()) printf
+#define DEBUG if (echttp_isdebug()) printf
 
 static int DaysPerMonth[12] = {
     31, // January.
@@ -168,13 +167,17 @@ static int housealmanac_before (DayTimePoint *dst, int month, int day) {
     return 0;
 }
 
-static const char *housealmanac_estimate (DayTimePoint monthly[],
-                                          int month, int day) {
-    static char ascii[128];
+static void housealmanac_estimate (DayTimePoint monthly[], struct tm *now) {
+
+    int month = now->tm_mon;
+    int day = now->tm_mday;
+
+    now->tm_sec = 0;
+
     if (day == 15) {
-        snprintf (ascii, sizeof(ascii),
-                  "%d:%02d", monthly[month].hour, monthly[month].minute);
-        return ascii;
+        now->tm_hour = monthly[month].hour;
+        now->tm_min = monthly[month].minute;
+        return;
     }
 
     int m1c, m2c; // Calendar month: 0 to 11.
@@ -223,9 +226,8 @@ static const char *housealmanac_estimate (DayTimePoint monthly[],
 
     DEBUG ("day = %d/%02d, time1 = %d/15 %d:%02d, time2 = %d/15 %d:%02d, a = %d, b = %d, result = %d:%02d\n", month+1, day, m1c+1, time1/60, time1%60, m2c+1, time2/60, time2%60, a, b, result/60, result%60);
 
-    snprintf (ascii, sizeof(ascii),
-              "%d:%02d", result / 60, result % 60);
-    return ascii;
+    now->tm_hour = result / 60;
+    now->tm_min = result % 60;
 }
 
 static const char *housealmanac_export (ParserContext context) {
@@ -239,6 +241,15 @@ static const char *housealmanac_export (ParserContext context) {
     }
     echttp_content_type_json ();
     return buffer;
+}
+
+static void housealmanac_add_datetime
+               (ParserContext context, int parent, struct tm *t) {
+
+    char ascii[16];
+    snprintf (ascii, sizeof(ascii), "%02d/%02d %02d:%02d",
+              t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min);
+    echttp_json_add_string (context, parent, 0, ascii);
 }
 
 static const char *housealmanac_selftest (const char *method, const char *uri,
@@ -257,26 +268,32 @@ static const char *housealmanac_selftest (const char *method, const char *uri,
 
     echttp_json_add_integer (context, top, "priority", 1);
 
-    RunningSelfTest = 1;
+    time_t now = time(0);
+    struct tm today = *localtime (&now);
 
     int sunrise = echttp_json_add_array (context, top, "sunrise");
     int month;
     for (month = 0; month < 12; ++month) {
         int day;
         int count = DaysPerMonth[month];
+        today.tm_mon = month;
         for (day = 1; day <= count; ++day) {
-            echttp_json_add_string (context, sunrise, 0, housealmanac_estimate (AlmanacDb.sunrises, month, day));
+            today.tm_mday = day;
+            housealmanac_estimate (AlmanacDb.sunrises, &today);
+            housealmanac_add_datetime (context, sunrise, &today);
         }
     }
     int sunset = echttp_json_add_array (context, top, "sunset");
     for (month = 0; month < 12; ++month) {
         int day;
         int count = DaysPerMonth[month];
+        today.tm_mon = month;
         for (day = 1; day <= count; ++day) {
-            echttp_json_add_string (context, sunset, 0, housealmanac_estimate (AlmanacDb.sunsets, month, day));
+            today.tm_mday = day;
+            housealmanac_estimate (AlmanacDb.sunsets, &today);
+            housealmanac_add_datetime (context, sunset, &today);
         }
     }
-    RunningSelfTest = 0;
 
     return housealmanac_export (context);
 }
@@ -299,17 +316,14 @@ static const char *housealmanac_nextnight (const char *method, const char *uri,
     echttp_json_add_integer (context, top, "priority", 1);
 
     // Approximate today's sunset and tomorrow's sunrise.
-    struct tm *today = localtime (&now);
-    const char *sunset = housealmanac_estimate (AlmanacDb.sunsets,
-                                                 today->tm_mon, today->tm_mday);
-    echttp_json_add_string (context, top, "sunset", sunset);
+    struct tm today = *localtime (&now);
+    housealmanac_estimate (AlmanacDb.sunsets, &today);
+    echttp_json_add_integer (context, top, "sunset", mktime (&today));
 
     now += (24*60*60);
-    struct tm *tomorrow = localtime (&now);
-    const char *sunrise = housealmanac_estimate (AlmanacDb.sunrises,
-                                                 tomorrow->tm_mon,
-                                                 tomorrow->tm_mday);
-    echttp_json_add_string (context, top, "sunrise", sunrise);
+    struct tm tomorrow = *localtime (&now);
+    housealmanac_estimate (AlmanacDb.sunrises, &tomorrow);
+    echttp_json_add_integer (context, top, "sunrise", mktime (&tomorrow));
 
     return housealmanac_export (context);
 }

@@ -48,19 +48,17 @@ GET /almanac/nextnight
 ```
 Return JSON data that contains the following data for the next night:
 - .host: name of the responding host.
-- .timestamp: time of the response, in seconds.
+- .timestamp: system time of the response, in seconds.
 - .almanac.priority: a priority level that matches the data quality.
-- .almanac.sunset: local time of sunset this day (string: HH:MM).
-- .almanac.sunrise: local time of sunrise next day(string: HH:MM).
+- .almanac.sunset: system time of sunset this day, in seconds (integer).
+- .almanac.sunrise: system time of sunrise next day, in seconds (integer).
 
 For this statically configured fallback service, the priority is always 1 (low).
 
 ```
 GET /almanac/selftest
 ```
-Return the complete sunset and sunrise information for the whole year. In this response, both the sunset and sunrise fields are arrays of 365 entries. Leap years are not considered (this is just a test endpoint).
-
-This endpoint forces HouseAlmanac to prints extensive traces to standard output. Do not use in production.
+Return the complete sunset and sunrise information for the whole year. In this response both the sunset and sunrise fields are arrays of 365 entries, and each entry is a string in the format "MM/DD HH:MM". Leap years are not considered (this is just a test endpoint).
 
 ## Further References
 
