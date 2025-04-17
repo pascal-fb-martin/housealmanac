@@ -36,7 +36,7 @@ clean:
 rebuild: clean all
 
 %.o: %.c
-	gcc -c -Os -o $@ $<
+	gcc -c -Wall -g -Os -o $@ $<
 
 housealmanac: $(OBJS)
 	gcc -Os -o housealmanac $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lrt

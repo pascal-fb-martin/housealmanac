@@ -230,6 +230,22 @@ static void housealmanac_estimate (DayTimePoint monthly[], struct tm *now) {
     now->tm_min = result % 60;
 }
 
+static const char *housealmanac_timezone (void) {
+
+    static char HouseTimeZone[256] = "";
+
+    if (HouseTimeZone[0] == 0) {
+        FILE *f = fopen ("/etc/timezone", "r");
+        if (!f) exit(1);
+        fgets (HouseTimeZone, sizeof(HouseTimeZone), f);
+        fclose (f);
+        char *eol = strchr (HouseTimeZone, '\n');
+        if (eol) *eol = 0;
+        DEBUG ("Obtained house timezone: %s\n", HouseTimeZone);
+    }
+    return HouseTimeZone;
+}
+
 static const char *housealmanac_export (ParserContext context) {
 
     static char buffer[65537];
@@ -246,7 +262,7 @@ static const char *housealmanac_export (ParserContext context) {
 static void housealmanac_add_datetime
                (ParserContext context, int parent, struct tm *t) {
 
-    char ascii[16];
+    char ascii[32];
     snprintf (ascii, sizeof(ascii), "%02d/%02d %02d:%02d",
               t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min);
     echttp_json_add_string (context, parent, 0, ascii);
@@ -257,7 +273,6 @@ static const char *housealmanac_selftest (const char *method, const char *uri,
 
     ParserToken token[1024];
     char pool[65537];
-    int i;
 
     ParserContext context = echttp_json_start (token, 1024, pool, 65537);
     int root = echttp_json_add_object (context, 0, 0);
@@ -315,6 +330,8 @@ static const char *housealmanac_nextnight (const char *method, const char *uri,
 
     echttp_json_add_integer (context, top, "priority", 1);
 
+    echttp_json_add_integer (context, top, "updated", now); // Just estimated.
+
     // Approximate today's sunset and tomorrow's sunrise.
     struct tm today = *localtime (&now);
     housealmanac_estimate (AlmanacDb.sunsets, &today);
@@ -325,6 +342,10 @@ static const char *housealmanac_nextnight (const char *method, const char *uri,
     housealmanac_estimate (AlmanacDb.sunrises, &tomorrow);
     echttp_json_add_integer (context, top, "sunrise", mktime (&tomorrow));
 
+    // Location information that we know about.
+    top = echttp_json_add_object (context, root, "location");
+    echttp_json_add_string (context, top, "timezone", housealmanac_timezone());
+
     return housealmanac_export (context);
 }
 
@@ -332,7 +353,6 @@ static void housealmanac_background (int fd, int mode) {
 
     static time_t LastRenewal = 0;
     time_t now = time(0);
-    int i;
 
     if (UseHousePortal) {
         static const char *path[] = {"almanac:/almanac"};
@@ -366,9 +386,6 @@ static void housealmanac_config_listener (const char *name, time_t timestamp,
 }
 
 int main (int argc, const char **argv) {
-
-    char path[256];
-    char cfgoption[512];
 
     // These strange statements are to make sure that fds 0 to 2 are
     // reserved, since this application might output some errors.
