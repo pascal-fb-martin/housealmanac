@@ -43,7 +43,14 @@ housealmanac: $(OBJS)
 
 # Application files installation --------------------------------
 
-install-app:
+install-ui:
+	mkdir -p $(SHARE)/public/almanac
+	chmod 755 $(SHARE) $(SHARE)/public $(SHARE)/public/almanac
+	cp public/* $(SHARE)/public/almanac
+	chown root:root $(SHARE)/public/almanac/*
+	chmod 644 $(SHARE)/public/almanac/*
+
+install-app: install-ui
 	mkdir -p $(HROOT)/bin
 	mkdir -p /var/lib/house
 	mkdir -p /etc/house
