@@ -364,7 +364,7 @@ static const char *housealmanac_tonight (const char *method, const char *uri,
     housealmanac_estimate (AlmanacDb.sunrises, &today);
     time_t sunrise = mktime (&today);
 
-    if (sunrise <= now) {
+    if (sunrise < now) {
        // Use today's sunset and tomorrow's sunrise.
        housealmanac_estimate (AlmanacDb.sunsets, &today);
        echttp_json_add_integer (context, top, "sunset", mktime (&today));
