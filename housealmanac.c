@@ -82,6 +82,8 @@ typedef struct {
 
 static AlmanacData AlmanacDb;
 
+static int AlmanacIsConfigured = 0;
+
 static void housealmanac_printentry (const char *label, int index, DayTimePoint *data) {
     DEBUG ("%s[%d]: month %d, day %d, hour %d, minute %d\n", label, index, data->month, data->day, data->hour, data->minute);
 }
@@ -156,6 +158,7 @@ static const char *housealmanac_refresh (void) {
                 housealmanac_printentry ("sunrises", i, AlmanacDb.sunrises+i);
         }
     }
+    AlmanacIsConfigured = 1;
     return 0;
 }
 
@@ -274,6 +277,11 @@ static const char *housealmanac_selftest (const char *method, const char *uri,
     ParserToken token[1024];
     char pool[65537];
 
+    if (! AlmanacIsConfigured) {
+        echttp_error (500, "Service initializing");
+        return "";
+    }
+
     ParserContext context = echttp_json_start (token, 1024, pool, 65537);
     int root = echttp_json_add_object (context, 0, 0);
     echttp_json_add_string (context, root, "host", houselog_host());
@@ -313,38 +321,92 @@ static const char *housealmanac_selftest (const char *method, const char *uri,
     return housealmanac_export (context);
 }
 
-static const char *housealmanac_nextnight (const char *method, const char *uri,
-                                           const char *data, int length) {
-    ParserToken token[1024];
-    char pool[65537];
-
-    time_t now = time(0);
-
-    ParserContext context = echttp_json_start (token, 1024, pool, 65537);
+static int housealmanac_header (time_t now, ParserContext context) {
 
     int root = echttp_json_add_object (context, 0, 0);
     echttp_json_add_string (context, root, "host", houselog_host());
     echttp_json_add_string (context, root, "proxy", houseportal_server());
     echttp_json_add_integer (context, root, "timestamp", (long long)now);
+
+    // Add the location information that we know about.
+    int loc = echttp_json_add_object (context, root, "location");
+    echttp_json_add_string (context, loc, "timezone", housealmanac_timezone());
+
     int top = echttp_json_add_object (context, root, "almanac");
-
     echttp_json_add_integer (context, top, "priority", 1);
-
     echttp_json_add_integer (context, top, "updated", now); // Just estimated.
 
-    // Approximate today's sunset and tomorrow's sunrise.
+    return top;
+}
+
+static const char *housealmanac_tonight (const char *method, const char *uri,
+                                         const char *data, int length) {
+    ParserToken token[1024];
+    char pool[65537];
+
+    if (! AlmanacIsConfigured) {
+        echttp_error (500, "Service initializing");
+        return "";
+    }
+
+    time_t now = time(0);
+
+    ParserContext context = echttp_json_start (token, 1024, pool, 65537);
+
+    int top = housealmanac_header (now, context);
+
+    // Estimate today's sunrise:
+    // - if in the past or present, then return today's sunset and tomorrow's
+    //   sunrise.
+    // - if in the future, return yesterday's sunset and today's sunrise.
+    //
     struct tm today = *localtime (&now);
+    housealmanac_estimate (AlmanacDb.sunrises, &today);
+    time_t sunrise = mktime (&today);
+
+    if (sunrise <= now) {
+       // Use today's sunset and tomorrow's sunrise.
+       housealmanac_estimate (AlmanacDb.sunsets, &today);
+       echttp_json_add_integer (context, top, "sunset", mktime (&today));
+
+       now += (24*60*60);
+       struct tm tomorrow = *localtime (&now);
+       housealmanac_estimate (AlmanacDb.sunrises, &tomorrow);
+       echttp_json_add_integer (context, top, "sunrise", mktime (&tomorrow));
+    } else {
+       // Use yesterday's sunset and today's sunrise.
+       now -= (24*60*60);
+       struct tm yesterday = *localtime (&now);
+       housealmanac_estimate (AlmanacDb.sunsets, &yesterday);
+       echttp_json_add_integer (context, top, "sunset", mktime (&yesterday));
+
+       echttp_json_add_integer (context, top, "sunrise", sunrise);
+    }
+
+    return housealmanac_export (context);
+}
+
+static const char *housealmanac_today (const char *method, const char *uri,
+                                       const char *data, int length) {
+    ParserToken token[1024];
+    char pool[65537];
+
+    if (! AlmanacIsConfigured) {
+        echttp_error (500, "Service initializing");
+        return "";
+    }
+
+    time_t now = time(0);
+
+    ParserContext context = echttp_json_start (token, 1024, pool, 65537);
+
+    int top = housealmanac_header (now, context);
+
+    struct tm today = *localtime (&now);
+    housealmanac_estimate (AlmanacDb.sunrises, &today);
+    echttp_json_add_integer (context, top, "sunrise", mktime (&today));
     housealmanac_estimate (AlmanacDb.sunsets, &today);
     echttp_json_add_integer (context, top, "sunset", mktime (&today));
-
-    now += (24*60*60);
-    struct tm tomorrow = *localtime (&now);
-    housealmanac_estimate (AlmanacDb.sunrises, &tomorrow);
-    echttp_json_add_integer (context, top, "sunrise", mktime (&tomorrow));
-
-    // Location information that we know about.
-    top = echttp_json_add_object (context, root, "location");
-    echttp_json_add_string (context, top, "timezone", housealmanac_timezone());
 
     return housealmanac_export (context);
 }
@@ -415,7 +477,8 @@ int main (int argc, const char **argv) {
     echttp_cors_allow_method("GET");
     echttp_protect (0, housealmanac_protect);
 
-    echttp_route_uri ("/almanac/nextnight", housealmanac_nextnight);
+    echttp_route_uri ("/almanac/tonight", housealmanac_tonight);
+    echttp_route_uri ("/almanac/today", housealmanac_today);
     echttp_route_uri ("/almanac/selftest", housealmanac_selftest);
 
     echttp_static_route ("/", "/usr/local/share/house/public");

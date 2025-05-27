@@ -44,16 +44,26 @@ An example of configuration for the Los Angeles area is provided.
 
 The HouseAlmanac service support the following web requests:
 ```
-GET /almanac/nextnight
+GET /almanac/tonight
 ```
-Return JSON data that contains the following data for the next night:
+Return JSON data that contains the following data for the upcoming or current
+night:
 - .host: name of the responding host.
 - .timestamp: system time of the response, in seconds.
 - .almanac.priority: a priority level that matches the data quality.
-- .almanac.sunset: system time of sunset this day, in seconds (integer).
-- .almanac.sunrise: system time of sunrise next day, in seconds (integer).
+- .almanac.sunset: system time of tonight's sunset, in seconds (integer).
+- .almanac.sunrise: system time of tonight's sunrise, in seconds (integer).
+
+The sunset time can be in the past, typically at night time.
 
 For this statically configured fallback service, the priority is always 1 (low).
+
+```
+GET /almanac/today
+```
+Return JSON data that contains the almanac data for this current day. The
+format is the same as for the `/almanac/tonight` endpoint, except that both
+the sunrise and sunset values are always for the current day.
 
 ```
 GET /almanac/selftest
