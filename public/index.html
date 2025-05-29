@@ -13,15 +13,6 @@ function AlmanacUpdate (what, response) {
     document.getElementsByTagName ('title')[0].innerHTML = title;
 
     if (response.location) {
-        var lat = response.location.lat;
-        var long = response.location.long;
-        if (lat && long) {
-            document.getElementById('latitude').innerHTML = lat;
-            document.getElementById('longitude').innerHTML = long;
-        } else {
-            document.getElementById('latitude').innerHTML = '';
-            document.getElementById('longitude').innerHTML = '';
-        }
         var timezone = response.location.timezone;
         if (timezone) {
             document.getElementById('timezone').innerHTML = timezone;
@@ -39,7 +30,7 @@ function AlmanacUpdate (what, response) {
 
     if (response.almanac) {
         if (response.almanac.priority) {
-            document.getElementById(what+'priority').innerHTML = response.almanac.priority;
+            document.getElementById('priority').innerHTML = response.almanac.priority;
         }
         if (response.almanac.sunset) {
             var sunset = new Date (response.almanac.sunset * 1000);
@@ -54,8 +45,8 @@ function AlmanacUpdate (what, response) {
             document.getElementById(what+'sunrise').innerHTML = '';
         }
     } else {
-        document.getElementById(what+'sunset').innerHTML = '';
-        document.getElementById(what+'sunrise').innerHTML = '';
+        document.getElementById('sunset').innerHTML = '';
+        document.getElementById('sunrise').innerHTML = '';
     }
 }
 
@@ -107,6 +98,8 @@ window.onload = function() {
    <td><span class="housedata" id="localtime"></span></td></tr>
    <tr><td>Time Zone:</td>
    <td><span class="housedata" id="timezone"></span></td></tr>
+   <tr><td>Priority:</td>
+   <td><span class="housedata" id="priority"></span></td></tr>
    </table>
    </div>
    </td></tr>
@@ -114,8 +107,6 @@ window.onload = function() {
    <div class="housepane">
    <table class="housestatus">
    <tr><td colspan="2"><span class="housetitle">Tonight Almanac</span></td></tr>
-   <tr><td>Priority:</td>
-   <td><span class="housedata" id="tonightpriority"></span></td></tr>
    <tr><td>Sunset:</td>
    <td><span class="housedata" id="tonightsunset"></span></td></tr>
    <tr><td>Sunrise:</td>
@@ -127,8 +118,6 @@ window.onload = function() {
    <div class="housepane">
    <table class="housestatus">
    <tr><td colspan="2"><span class="housetitle">Today Almanac</span></td></tr>
-   <tr><td>Priority:</td>
-   <td><span class="housedata" id="todaypriority"></span></td></tr>
    <tr><td>Sunrise:</td>
    <td><span class="housedata" id="todaysunrise"></span></td></tr>
    <tr><td>Sunset:</td>
