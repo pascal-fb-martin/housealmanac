@@ -61,7 +61,7 @@ install-app: install-ui
 	touch /etc/default/housealmanac
 
 uninstall-app:
-	rm -rf $(SHARE)/public/housealmanac
+	rm -rf $(SHARE)/public/almanac
 	rm -f $(HROOT)/bin/housealmanac
 
 purge-app:
