@@ -16,10 +16,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA  02110-1301, USA.
+#
+# WARNING
+#
+# This Makefile depends on echttp and houseportal (dev) being installed.
+
+prefix=/usr/local
+SHARE=$(prefix)/share/house
+
+INSTALL=/usr/bin/install
 
 HAPP=housealmanac
-HROOT=/usr/local
-SHARE=$(HROOT)/share/house
 
 # Application build. --------------------------------------------
 
@@ -43,31 +50,22 @@ housealmanac: $(OBJS)
 
 # Application files installation --------------------------------
 
-install-ui:
-	mkdir -p $(SHARE)/public/almanac
-	chmod 755 $(SHARE) $(SHARE)/public $(SHARE)/public/almanac
-	cp public/* $(SHARE)/public/almanac
-	chown root:root $(SHARE)/public/almanac/*
-	chmod 644 $(SHARE)/public/almanac/*
+install-ui: install-preamble
+	$(INSTALL) -m 0755 -d $(DESTDIR)$(SHARE)/public/almanac
+	$(INSTALL) -m 0644 public/* $(DESTDIR)$(SHARE)/public/almanac
 
 install-app: install-ui
-	mkdir -p $(HROOT)/bin
-	mkdir -p /var/lib/house
-	mkdir -p /etc/house
-	rm -f $(HROOT)/bin/housealmanac
-	cp housealmanac $(HROOT)/bin
-	chown root:root $(HROOT)/bin/housealmanac
-	chmod 755 $(HROOT)/bin/housealmanac
-	touch /etc/default/housealmanac
+	$(INSTALL) -m 0755 -s housealmanac $(prefix)/bin
+	touch $(DESTDIR)/etc/default/housealmanac
 
 uninstall-app:
-	rm -rf $(SHARE)/public/almanac
-	rm -f $(HROOT)/bin/housealmanac
+	rm -rf $(DESTDIR)$(SHARE)/public/almanac
+	rm -f $(DESTDIR)$(prefix)/bin/housealmanac
 
 purge-app:
 
 purge-config:
-	rm -rf /etc/default/housealmanac
+	rm -rf $(DESTDIR)/etc/default/housealmanac
 
 # System installation. ------------------------------------------
 
@@ -79,8 +77,8 @@ docker: all
 	rm -rf build
 	mkdir -p build
 	cp Dockerfile build
-	mkdir -p build$(HROOT)/bin
-	cp housealmanac build$(HROOT)/bin
-	chmod 755 build$(HROOT)/bin/housealmanac
+	mkdir -p build$(prefix)/bin
+	cp housealmanac build$(prefix)/bin
+	chmod 755 build$(prefix)/bin/housealmanac
 	cd build ; docker build -t housealmanac .
 	rm -rf build
