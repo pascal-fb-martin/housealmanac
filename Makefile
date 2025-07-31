@@ -46,7 +46,7 @@ rebuild: clean all
 	gcc -c -Wall -g -Os -o $@ $<
 
 housealmanac: $(OBJS)
-	gcc -Os -o housealmanac $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lrt
+	gcc -Os -o housealmanac $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lmagic -lrt
 
 # Application files installation --------------------------------
 
