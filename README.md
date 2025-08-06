@@ -74,3 +74,19 @@ Return the complete sunset and sunrise information for the whole year. In this r
 
 More precise sunset and sunrise information can be obtained from [SunriseSunset](https://sunrise-sunset.org). See their [API](https://sunrise-sunset.org/api) for more information.
 
+## Debian Packaging
+
+The provided Makefile supports building private Debian packages. These are _not_ official packages:
+
+- They do not follow all Debian policies.
+
+- They are not built using Debian standard conventions and tools.
+
+- The packaging is not separate from the upstream sources, and there is
+  no source package.
+
+To build a Debian package, use the `debian-package` target:
+```
+make debian-package
+```
+
