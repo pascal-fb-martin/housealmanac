@@ -1,0 +1,19 @@
+Source: housealmanac
+Version: 1.0
+Section: Web servers
+Maintainer: Pascal Martin <pascal.fb.martin@gmail.com>
+Priority: optional
+Homepage: https://github.com/pascal-fb-martin/housealmanac
+Standard-Version: 4.7.0
+Package: housealmanac
+Architecture: {{arch}}
+Depends: 
+Description: A House service to estimate sunrise and sunset time
+ HouseAlmanac is part of the House suite of web services.
+ .
+ HouseAlmanac provide an estimate of the sunrise and sunset time for each
+ day of the year. The goal is not precise and accurate time, it is to have
+ a service that has no dependency on external Internet connection, as a
+ fallback resource. The sunset and sunrise times can be used when scheduling
+ light controls.
+
