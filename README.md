@@ -4,6 +4,7 @@ A fallback service providing rough estimates for almanac information
 ## Overview
 
 This service provides very rough data about the current day:
+
 - Sunrise time.
 - Sunset time.
 
@@ -16,6 +17,7 @@ This service has no web UI.
 ## Installation
 
 This service depends on the House series environment:
+
 * Install git, icoutils, openssl (libssl-dev).
 * Install [echttp](https://github.com/pascal-fb-martin/echttp)
 * Install [houseportal](https://github.com/pascal-fb-martin/houseportal)
@@ -26,6 +28,7 @@ This service depends on the House series environment:
 ## Configuration
 
 The HouseAlmanac service loads its configuration from the almanac.json file, which syntax matches the example below:
+
 ```
 {
     "almanac": {
@@ -43,11 +46,14 @@ An example of configuration for the Los Angeles area is provided.
 ## Web API
 
 The HouseAlmanac service support the following web requests:
+
 ```
 GET /almanac/tonight
 ```
+
 Return JSON data that contains the following data for the upcoming or current
 night:
+
 - .host: name of the responding host.
 - .timestamp: system time of the response, in seconds.
 - .almanac.priority: a priority level that matches the data quality.
@@ -61,6 +67,7 @@ For this statically configured fallback service, the priority is always 1 (low).
 ```
 GET /almanac/today
 ```
+
 Return JSON data that contains the almanac data for this current day. The
 format is the same as for the `/almanac/tonight` endpoint, except that both
 the sunrise and sunset values are always for the current day.
@@ -68,6 +75,7 @@ the sunrise and sunset values are always for the current day.
 ```
 GET /almanac/selftest
 ```
+
 Return the complete sunset and sunrise information for the whole year. In this response both the sunset and sunrise fields are arrays of 365 entries, and each entry is a string in the format "MM/DD HH:MM". Leap years are not considered (this is just a test endpoint).
 
 ## Further References
@@ -86,6 +94,7 @@ The provided Makefile supports building private Debian packages. These are _not_
   no source package.
 
 To build a Debian package, use the `debian-package` target:
+
 ```
 make debian-package
 ```

@@ -27,6 +27,8 @@ SHARE=$(prefix)/share/house
 INSTALL=/usr/bin/install
 
 HAPP=housealmanac
+HMAN=/var/lib/house/note/content/manuals/providers
+HMANCACHE=/var/lib/house/note/cache
 
 # Application build. --------------------------------------------
 
@@ -53,6 +55,9 @@ housealmanac: $(OBJS)
 install-ui: install-preamble
 	$(INSTALL) -m 0755 -d $(DESTDIR)$(SHARE)/public/almanac
 	$(INSTALL) -m 0644 public/* $(DESTDIR)$(SHARE)/public/almanac
+	$(INSTALL) -m 0755 -d $(DESTDIR)$(HMAN)
+	$(INSTALL) -m 0644 README.md $(DESTDIR)$(HMAN)/$(HAPP).md
+	rm -rf $(DESTDIR)$(HMANCACHE)/*
 
 install-runtime: install-preamble
 	$(INSTALL) -m 0755 -s housealmanac $(DESTDIR)$(prefix)/bin
@@ -63,6 +68,8 @@ install-app: install-ui install-runtime
 uninstall-app:
 	rm -rf $(DESTDIR)$(SHARE)/public/almanac
 	rm -f $(DESTDIR)$(prefix)/bin/housealmanac
+	rm -f $(DESTDIR)$(HMAN)/$(HAPP).md
+	rm -rf $(DESTDIR)$(HMANCACHE)/*
 
 purge-app:
 
