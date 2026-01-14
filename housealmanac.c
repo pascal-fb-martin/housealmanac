@@ -99,8 +99,8 @@ static const char *housealmanac_refresh (void) {
     int sunsets = houseconfig_array (0, ".almanac.sunset");
     if (sunsets < 0) return "cannot find sunsets array";
 
-    if (houseconfig_array_length (sunrises) != 12)
-        return "not a valid sunrises array";
+    if (houseconfig_array_length (sunsets) != 12)
+        return "not a valid sunsets array";
 
     int dst = houseconfig_array (0, ".almanac.dst");
     if (dst < 0) return "cannot find dst array";
@@ -109,10 +109,11 @@ static const char *housealmanac_refresh (void) {
         return "not a valid dst array";
 
     int i;
+    int list[12];
+
+    houseconfig_enumerate (dst, list, 12);
     for (i = 0; i < 2; ++i) {
-        char path[128];
-        snprintf (path, sizeof(path), "[%d]", i);
-        const char *dstdate = houseconfig_string (dst, path);
+        const char *dstdate = houseconfig_string (list[i], "");
         if (dstdate) {
             AlmanacDb.dst[i].month = atoi(dstdate);
             AlmanacDb.dst[i].day = 15; // Arbitrary default.
@@ -125,10 +126,9 @@ static const char *housealmanac_refresh (void) {
         }
     }
 
+    houseconfig_enumerate (sunsets, list, 12);
     for (i = 0; i < 12; ++i) {
-        char path[128];
-        snprintf (path, sizeof(path), "[%d]", i);
-        const char *daytime = houseconfig_string (sunsets, path);
+        const char *daytime = houseconfig_string (list[i], "");
         if (daytime) {
             AlmanacDb.sunsets[i].month = i+1;
             AlmanacDb.sunsets[i].day = 15; // Implicit.
@@ -141,10 +141,9 @@ static const char *housealmanac_refresh (void) {
         }
     }
 
+    houseconfig_enumerate (sunrises, list, 12);
     for (i = 0; i < 12; ++i) {
-        char path[128];
-        snprintf (path, sizeof(path), "[%d]", i);
-        const char *daytime = houseconfig_string (sunrises, path);
+        const char *daytime = houseconfig_string (list[i], "");
         if (daytime) {
             AlmanacDb.sunrises[i].month = i+1;
             AlmanacDb.sunrises[i].day = 15; // Implicit.
