@@ -415,23 +415,12 @@ static void housealmanac_background (int fd, int mode) {
     houseportal_background (now);
     housediscover (now);
     houselog_background (now);
+    houseconfig_background (now);
     housedepositor_periodic (now);
 }
 
 static void housealmanac_protect (const char *method, const char *uri) {
     echttp_cors_protect(method, uri);
-}
-
-static void housealmanac_config_listener (const char *name, time_t timestamp,
-                                          const char *data, int length) {
-
-    houselog_event ("SYSTEM", "CONFIG", "LOAD", "FROM DEPOT %s", name);
-    if (!houseconfig_update (data)) {
-        const char *error = housealmanac_refresh ();
-        if (error) {
-            DEBUG ("cannot load config: %s\n", error);
-        }
-    }
 }
 
 int main (int argc, const char **argv) {
@@ -455,12 +444,10 @@ int main (int argc, const char **argv) {
     houselog_initialize ("almanac", argc, argv);
     housedepositor_initialize (argc, argv);
 
-    houseconfig_default ("--config=almanac");
-    const char *error = houseconfig_load (argc, argv);
+    const char *error =
+        houseconfig_initialize ("almanac", housealmanac_refresh, argc, argv);
     if (error)
         houselog_trace (HOUSE_FAILURE, "CONFIG", "Cannot load: %s\n", error);
-    housedepositor_subscribe
-        ("config", houseconfig_name(), housealmanac_config_listener);
 
     echttp_cors_allow_method("GET");
     echttp_protect (0, housealmanac_protect);
