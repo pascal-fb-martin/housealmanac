@@ -31,7 +31,7 @@ HCAT=providers
 
 # Application build. --------------------------------------------
 
-OBJS=housealmanac.o
+OBJS=housealmanac.o housealmanac_calculate.o housealmanac_location.o
 LIBOJS=
 
 all: housealmanac
@@ -47,7 +47,7 @@ rebuild: clean all
 	gcc -c -Wall -g -Os -o $@ $<
 
 housealmanac: $(OBJS)
-	gcc -Os -o housealmanac $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lmagic -lrt
+	gcc -Os -o housealmanac $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lmagic -lm -lrt
 
 # Application files installation --------------------------------
 

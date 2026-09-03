@@ -13,11 +13,14 @@ function AlmanacUpdate (what, response) {
     document.getElementsByTagName ('title')[0].innerHTML = title;
 
     if (response.location) {
-        var timezone = response.location.timezone;
-        if (timezone) {
-            document.getElementById('timezone').innerHTML = timezone;
+        var lat = response.location.lat;
+        var long = response.location.long;
+        if (lat && long) {
+            document.getElementById('latitude').innerHTML = lat;
+            document.getElementById('longitude').innerHTML = long;
         } else {
-            document.getElementById('timezone').innerHTML = '';
+            document.getElementById('latitude').innerHTML = '';
+            document.getElementById('longitude').innerHTML = '';
         }
     } else {
         document.getElementById('latitude').innerHTML = '';
@@ -90,10 +93,12 @@ window.onload = function() {
    <div class="housepane">
    <table class="housestatus">
    <tr><td colspan="2"><span class="housetitle">Location</span></td></tr>
+   <tr><td>Latitude:</td>
+   <td><span class="housedata" id="latitude"></span></td></tr>
+   <tr><td>Longitude:</td>
+   <td><span class="housedata" id="longitude"></span></td></tr>
    <tr><td>Local Time:</td>
    <td><span class="housedata" id="localtime"></span></td></tr>
-   <tr><td>Time Zone:</td>
-   <td><span class="housedata" id="timezone"></span></td></tr>
    <tr><td>Priority:</td>
    <td><span class="housedata" id="priority"></span></td></tr>
    </table>
