@@ -17,50 +17,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA  02110-1301, USA.
  *
- * housealmanac_local.c - Calculate sunset and sunrise time locally
+ * housealmanac_calculate.c - Calculate sunset and sunrise time locally
  *
  * SYNOPSYS:
  *
  * This code was generated using Google Gemini, then modified to fit
- * within the HouseAlmanac project.
+ * within the HouseAlmanac project. That code claims to be based on
+ * the official United States Naval Observatory method.
  *
  * SYNOPSYS:
  *
- * void housealmanac_calculate_location (double latitude, double longitude);
+ * const char *housealmanac_calculate (const struct tm *date,
+ *                                     double latitude, double longitude,
+ *                                     time_t *rise, time_t *set);
  *
- *    Set the current location for which future almanac data is needed.
- *    The timezone parameter is the offset with UTC in seconds.
- *    No almanac data will be available until the location is known.
- *
- * const char *housealmanac_calculate_today (time_t now,
- *                                           time_t *rise, time_t *set);
- *
- *    Get the sunrise and sunset times for today. Return null on success,
- *    an error message otherwise.
- *
- * const char *housealmanac_calculate_tonight (time_t now,
- *                                             time_t *set, time_t *rise);
- *
- *    Get the sunset and sunrise times for the upcoming night. Return null
- *    on success, an error message otherwise.
- *
- * const char *housealmanac_calculate_origin (void);
- *
- *    Return a static string describing the origin of the data.
- *
+ *    Calculate both sunrise and sunset for the specified date.
+ *    Return null on success, an error message otherwise.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <math.h>
 #include <time.h>
 
 #include "housealmanac_calculate.h"
-
-static int AlmanacHasLocation = 0;
-static double AlmanacLatitude = 0.0;
-static double AlmanacLongitude = 0.0;
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -153,113 +131,31 @@ static int calculate_sun_time(int yearday,
     return 1;
 }
 
-void housealmanac_calculate_location (double latitude, double longitude) {
+const char *housealmanac_calculate (const struct tm *date,
+                                    double latitude, double longitude,
+                                    time_t *rise, time_t *set) {
 
-    AlmanacLatitude = latitude;
-    AlmanacLongitude = longitude;
-    AlmanacHasLocation = 1;
-}
+    int hour, minute;
+    double timezone = (double)(date->tm_gmtoff) / 3600.0;
 
-const char *housealmanac_calculate_today (time_t now,
-                                          time_t *rise, time_t *set) {
-
-    if (!AlmanacHasLocation) return "unknown location";
-
-    int rise_h, rise_m, set_h, set_m;
-    struct tm today = *localtime (&now);
-    double timezone = (double)(today.tm_gmtoff) / 3600.0;
-
-    if (!calculate_sun_time(today.tm_yday, AlmanacLatitude, AlmanacLongitude,
-                            timezone, 1, &rise_h, &rise_m)) {
+    if (!calculate_sun_time(date->tm_yday, latitude, longitude,
+                            timezone, 1, &hour, &minute)) {
         return "No sunrise detected (Polar day/night)";
     }
+    struct tm sun = *date;
+    sun.tm_sec = 0;
+    sun.tm_min = minute;
+    sun.tm_hour = hour;
+    *rise = mktime (&sun);
 
-    if (!calculate_sun_time(today.tm_yday, AlmanacLatitude, AlmanacLongitude,
-                            timezone, 0, &set_h, &set_m)) {
+    if (!calculate_sun_time(date->tm_yday, latitude, longitude,
+                            timezone, 0, &hour, &minute)) {
         return "No sunset detected (Polar day/night)";
     }
-
-    today.tm_sec = 0;
-    today.tm_min = rise_m;
-    today.tm_hour = rise_h;
-    *rise = mktime (&today);
-
-    today.tm_sec = 0;
-    today.tm_min = set_m;
-    today.tm_hour = set_h;
-    *set = mktime (&today);
+    sun.tm_min = minute;
+    sun.tm_hour = hour;
+    *set = mktime (&sun);
 
     return 0;
-}
-
-const char *housealmanac_calculate_tonight (time_t now,
-                                            time_t *set, time_t *rise) {
-
-    if (!AlmanacHasLocation) return "unknown location";
-
-    int rise_h, rise_m, set_h, set_m;
-    struct tm today = *localtime (&now);
-    double timezone = (double)(today.tm_gmtoff) / 3600.0;
-
-    if (!calculate_sun_time(today.tm_yday, AlmanacLatitude, AlmanacLongitude,
-                            timezone, 1, &rise_h, &rise_m)) {
-        return "No sunrise detected (Polar day/night)";
-    }
-
-    today.tm_sec = 0;
-    today.tm_min = rise_m;
-    today.tm_hour = rise_h;
-    *rise = mktime (&today);
-
-    if (now <= *rise) {
-        // That night is not over, look for yesterday's sunset
-        now -= (24*60*60);
-        struct tm yesterday = *localtime (&now);
-
-        if (!calculate_sun_time(yesterday.tm_yday,
-                                AlmanacLatitude, AlmanacLongitude,
-                                timezone, 0, &set_h, &set_m)) {
-            return "No sunset detected (Polar day/night)";
-        }
-
-        yesterday.tm_sec = 0;
-        yesterday.tm_min = set_m;
-        yesterday.tm_hour = set_h;
-        *set = mktime (&yesterday);
-
-    } else {
-        // That night is over, look for today's sunset.
-        if (!calculate_sun_time(today.tm_yday,
-                                AlmanacLatitude, AlmanacLongitude,
-                                timezone, 0, &set_h, &set_m)) {
-            return "No sunset detected (Polar day/night)";
-        }
-
-        today.tm_sec = 0;
-        today.tm_min = set_m;
-        today.tm_hour = set_h;
-        *set = mktime (&today);
-
-        // We must recalculate sunrise: this is tomorrow's sunrise.
-        now += (24*60*60);
-        struct tm tomorrow = *localtime (&now);
-
-        if (!calculate_sun_time(tomorrow.tm_yday,
-                                AlmanacLatitude, AlmanacLongitude,
-                                timezone, 1, &rise_h, &rise_m)) {
-            return "No sunrise detected (Polar day/night)";
-        }
-
-        tomorrow.tm_sec = 0;
-        tomorrow.tm_min = rise_m;
-        tomorrow.tm_hour = rise_h;
-        *rise = mktime (&tomorrow);
-    }
-
-    return 0;
-}
-
-const char *housealmanac_calculate_origin (void) {
-    return "calculated";
 }
 

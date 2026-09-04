@@ -35,7 +35,6 @@
 #include <unistd.h>
 
 #include "echttp.h"
-#include "echttp_libc.h"
 #include "echttp_cors.h"
 #include "echttp_json.h"
 #include "echttp_static.h"
@@ -44,44 +43,60 @@
 #include "housediscover.h"
 #include "houselog.h"
 #include "housealmanac_location.h"
-#include "housealmanac_calculate.h"
+#include "housealmanac_cache.h"
 
 #define DEBUG if (echttp_isdebug()) printf
 
-static const char *housealmanac_content (time_t sunset, time_t sunrise,
-                                         time_t timestamp) {
+static int housealmanac_head (ParserContext *context, time_t now) {
 
     static char host[256];
-    static char buffer[65537];
     static char pool[65537];
+    static ParserToken token[1024];
 
     if (host[0] == 0) gethostname (host, sizeof(host));
 
-    ParserToken token[1024];
-    ParserContext context = echttp_json_start (token, 1024, pool, sizeof(pool));
+    ParserContext local = echttp_json_start (token, 1024, pool, sizeof(pool));
 
-    const char *origin = housealmanac_calculate_origin();
-
-    int root = echttp_json_add_object (context, 0, 0);
-    echttp_json_add_string (context, root, "host", host);
-    echttp_json_add_string (context, root, "proxy", houseportal_server());
-    echttp_json_add_integer (context, root, "timestamp", (long)time(0));
+    int root = echttp_json_add_object (local, 0, 0);
+    echttp_json_add_string (local, root, "host", host);
+    echttp_json_add_string (local, root, "proxy", houseportal_server());
+    echttp_json_add_integer (local, root, "timestamp", now);
 
     // Extra information that can be used as status.
     //
-    int loc = echttp_json_add_object (context, root, "location");
     if (housealmanac_location_ready()) {
-        echttp_json_add_real (context, loc, "lat", housealmanac_location_lat());
-        echttp_json_add_real (context, loc, "long", housealmanac_location_long());
+        int loc = echttp_json_add_object (local, root, "location");
+        echttp_json_add_real (local, loc, "lat", housealmanac_location_lat());
+        echttp_json_add_real (local, loc, "long", housealmanac_location_long());
     }
+    *context = local;
+    return root;
+}
+
+static int housealmanac_top (ParserContext context, int root) {
+
+    const char *origin = housealmanac_cache_origin();
+    time_t updated = housealmanac_cache_updated();
 
     int top = echttp_json_add_object (context, root, "almanac");
     echttp_json_add_integer (context, top, "priority", 1);
-    echttp_json_add_integer (context, top, "updated", timestamp);
-    echttp_json_add_string (context, top, "origin", origin);
-    echttp_json_add_integer (context, top, "sunset", sunset);
-    echttp_json_add_integer (context, top, "sunrise", sunrise);
+    echttp_json_add_integer (context, top, "updated", updated);
+    echttp_json_add_string  (context, top, "origin", origin);
+    return top;
+}
 
+static void housealmanac_subcontent (ParserContext context,
+                                     int top, const char *id,
+                                     time_t sunrise, time_t sunset) {
+
+    int sub = echttp_json_add_object (context, top, id);
+    echttp_json_add_integer (context, sub, "sunrise", sunrise);
+    echttp_json_add_integer (context, sub, "sunset", sunset);
+}
+
+static const char *housealmanac_tail (ParserContext context) {
+
+    static char buffer[65537];
     const char *error = echttp_json_export (context, buffer, sizeof(buffer));
     if (error) {
         echttp_error (500, error);
@@ -91,34 +106,101 @@ static const char *housealmanac_content (time_t sunset, time_t sunrise,
     return buffer;
 }
 
+static const char *housealmanac_content (time_t now,
+                                         time_t sunrise, time_t sunset) {
+
+    ParserContext context;
+    int root = housealmanac_head (&context, now);
+    int top = housealmanac_top (context, root);
+    echttp_json_add_integer (context, top, "sunset", sunset);
+    echttp_json_add_integer (context, top, "sunrise", sunrise);
+    return housealmanac_tail (context);
+}
+
+static time_t housealmanac_refresh (void) {
+
+    time_t now = time(0);
+    const char *error = housealmanac_cache_refresh (now);
+    if (error) {
+        echttp_error (500, error);
+        return 0;
+    }
+    return now;
+}
+
 static const char *housealmanac_tonight (const char *method, const char *uri,
                                          const char *data, int length) {
 
-    time_t now = time(0);
+    time_t now = housealmanac_refresh();
+    if (!now) return "";
+
     time_t sunset;
     time_t sunrise;
+    housealmanac_cache_tonight (now, &sunset, &sunrise);
+    return housealmanac_content (now, sunrise, sunset);
+}
 
-    const char *error = housealmanac_calculate_tonight (now, &sunset, &sunrise);
-    if (error) {
-        echttp_error (500, error);
-        return "";
-    }
-    return housealmanac_content (sunset, sunrise, now);
+static const char *housealmanac_yesterday (const char *method, const char *uri,
+                                           const char *data, int length) {
+
+    time_t now = housealmanac_refresh();
+    if (!now) return "";
+
+    time_t sunset;
+    time_t sunrise;
+    housealmanac_cache_yesterday (&sunrise, &sunset);
+    return housealmanac_content (now, sunrise, sunset);
 }
 
 static const char *housealmanac_today (const char *method, const char *uri,
                                        const char *data, int length) {
 
-    time_t now = time(0);
+    time_t now = housealmanac_refresh();
+    if (!now) return "";
+
     time_t sunset;
     time_t sunrise;
+    housealmanac_cache_today (&sunrise, &sunset);
+    return housealmanac_content (now, sunrise, sunset);
+}
 
-    const char *error = housealmanac_calculate_today (now, &sunrise, &sunset);
-    if (error) {
-        echttp_error (500, error);
-        return "";
-    }
-    return housealmanac_content (sunset, sunrise, now);
+static const char *housealmanac_tomorrow (const char *method, const char *uri,
+                                          const char *data, int length) {
+
+    time_t now = housealmanac_refresh();
+    if (!now) return "";
+
+    time_t sunset;
+    time_t sunrise;
+    housealmanac_cache_tomorrow (&sunrise, &sunset);
+    return housealmanac_content (now, sunrise, sunset);
+}
+
+static const char *housealmanac_status (const char *method, const char *uri,
+                                       const char *data, int length) {
+
+    time_t sunset;
+    time_t sunrise;
+    time_t now = housealmanac_refresh();
+    if (!now) return "";
+
+    ParserContext context;
+    int root = housealmanac_head (&context, now);
+    int top = housealmanac_top (context, root);
+
+    housealmanac_cache_yesterday (&sunrise, &sunset);
+    housealmanac_subcontent (context, top, "yesterday", sunrise, sunset);
+
+    housealmanac_cache_today (&sunrise, &sunset);
+    housealmanac_subcontent (context, top, "today", sunrise, sunset);
+
+    housealmanac_cache_tomorrow (&sunrise, &sunset);
+    housealmanac_subcontent (context, top, "tomorrow", sunrise, sunset);
+
+    housealmanac_cache_tonight (now, &sunset, &sunrise);
+    housealmanac_subcontent (context, top, "tonight", sunrise, sunset);
+
+    return housealmanac_tail (context);
 }
 
 static void housealmanac_background (int fd, int mode) {
@@ -136,8 +218,9 @@ static void housealmanac_background (int fd, int mode) {
 
     if (housealmanac_location_ready()) {
         // GPS coordinates are needed for the almanac data.
-        housealmanac_calculate_location (housealmanac_location_lat(),
-                                         housealmanac_location_long());
+        housealmanac_cache_location (housealmanac_location_lat(),
+                                     housealmanac_location_long());
+        housealmanac_cache_background (now);
     }
 }
 
@@ -165,13 +248,16 @@ int main (int argc, const char **argv) {
 
     housediscover_initialize (argc, argv);
     houselog_initialize ("almanac", argc, argv);
+    housealmanac_location_initialize (argc, argv);
 
     echttp_cors_allow_method("GET");
     echttp_protect (0, housealmanac_protect);
 
-    echttp_route_uri ("/almanac/status", housealmanac_today);
-    echttp_route_uri ("/almanac/tonight", housealmanac_tonight);
-    echttp_route_uri ("/almanac/today", housealmanac_today);
+    echttp_route_uri ("/almanac/tonight",   housealmanac_tonight);
+    echttp_route_uri ("/almanac/today",     housealmanac_today);
+    echttp_route_uri ("/almanac/yesterday", housealmanac_yesterday);
+    echttp_route_uri ("/almanac/tomorrow",  housealmanac_tomorrow);
+    echttp_route_uri ("/almanac/status",    housealmanac_status);
 
     echttp_static_route ("/", "/usr/local/share/house/public");
     echttp_background (&housealmanac_background);

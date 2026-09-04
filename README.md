@@ -1,18 +1,16 @@
 # HouseAlmanac
-A fallback service providing rough estimates for almanac information
+A service providing almanac information calculated locally
 
 ## Overview
 
-This service provides very rough data about the current day:
+This service provides almanac data about the current, previous and next day:
 
 - Sunrise time.
 - Sunset time.
 
-These values are estimated based on mid-month static data (from a configuration file). The estimation uses a linear regression method.
+These values are calculated based on the United States Naval Observatory method.
 
 The purpose of this service is either as a test tools for applications that depend on an almanac service, or as a fallback when Internet connectivity is not available.
-
-This service has no web UI.
 
 ## Installation
 
@@ -25,23 +23,13 @@ This service depends on the House series environment:
 * make rebuild
 * sudo make install
 
+In addition one instance of the [houseclock](https://github.com/pascal-fb-martin/houseclock) service must be running on the local network, with a GPS receiver attached (to provide the latitude and longitude). This does not need to run (or be installed) on the same machine as HouseAlmanac.
+
 ## Configuration
 
-The HouseAlmanac service loads its configuration from the almanac.json file, which syntax matches the example below:
+The HouseAlmanac service does not need configuration files.
 
-```
-{
-    "almanac": {
-        "sunrise": ["6:58","6:33","6:41","6:24","5:46","5:42","5:50","6:16","6:37","6:54","6:28","6:49"],
-        "sunset": ["17:33","17:59","19:19","19:49","20:14","20:31","20:40","19:57","19:15","19:33","17:04","17:08"],
-        "dst": ["03/09","11/02"]
-    }
-}
-```
-
-All times are local time. the `dst` array represents the two DST changes dates, spring and fall.
-
-An example of configuration for the Los Angeles area is provided.
+If no [houseclock](https://github.com/pascal-fb-martin/houseclock) service instance is present, the `-latitude` and `-longitude` command line option must be used as a substitute.
 
 ## Web API
 
@@ -65,18 +53,25 @@ The sunset time can be in the past, typically at night time.
 For this statically configured fallback service, the priority is always 1 (low).
 
 ```
+GET /almanac/yesterday
 GET /almanac/today
+GET /almanac/tomorrow
 ```
 
-Return JSON data that contains the almanac data for this current day. The
+Return JSON data that contains the almanac data for the specified day. The
 format is the same as for the `/almanac/tonight` endpoint, except that both
-the sunrise and sunset values are always for the current day.
+the sunrise and sunset values are always for the specified day.
 
 ```
-GET /almanac/selftest
+GET /almanac/status
 ```
 
-Return the complete sunset and sunrise information for the whole year. In this response both the sunset and sunrise fields are arrays of 365 entries, and each entry is a string in the format "MM/DD HH:MM". Leap years are not considered (this is just a test endpoint).
+Return the complete sunset and sunrise information: current, past and next day as well as the `tonight` almanac. Each set is provided as a separate object:
+
+- `.almanac.today`: sunrise and sunset time for the current day.
+- `.almanac.yesterday`: sunrise and sunset time for the previous day.
+- `.almanac.tomorrow`: sunrise and sunset time for the next day.
+- `.almanac.tonight`: sunrise and sunset time for the upcoming or current night.
 
 ## Further References
 

@@ -31,7 +31,7 @@ HCAT=providers
 
 # Application build. --------------------------------------------
 
-OBJS=housealmanac.o housealmanac_calculate.o housealmanac_location.o
+OBJS=housealmanac.o housealmanac_cache.o housealmanac_calculate.o housealmanac_location.o
 LIBOJS=
 
 all: housealmanac

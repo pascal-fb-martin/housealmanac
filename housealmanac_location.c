@@ -40,6 +40,11 @@
  *
  *    Return the house latitude and longitude coordinates.
  *
+ * void housealmanac_location_initialize (int argc, const char **argv);
+ *
+ *    Initialize this module. This accepts the -latitude=N and -lontitude=N
+ *    options.
+ *
  * void housealmanac_location_background (time_t now);
  *
  *    The periodic function that detects the clock services.
@@ -64,7 +69,7 @@ static double HouseLatitude = 0.0;
 static double HouseLongitude = 0.0;
 
 int housealmanac_location_ready (void) {
-    return HouseGpsFix;
+    return HouseGpsFix > 0;
 }
 
 double housealmanac_location_lat (void) {
@@ -164,11 +169,25 @@ static void housealmanac_location_scan
     echttp_submit (0, 0, housealmanac_location_discovered, (void *)provider);
 }
 
+void housealmanac_location_initialize (int argc, const char **argv) {
+
+    int i;
+    const char *value;
+    char *end;
+    for (i = 1; i < argc; ++i) {
+         if (echttp_option_match("-latitude=", argv[i], &value)) {
+             HouseLatitude = strtod (value, &end);
+             HouseGpsFix += 1;
+         } else if (echttp_option_match("-longitude=", argv[i], &value)) {
+             HouseLongitude = strtod (value, &end);
+             HouseGpsFix += 1;
+         }
+    }
+}
+
 void housealmanac_location_background (time_t now) {
 
     static time_t latestdiscovery = 0;
-
-    if (HouseGpsFix) return; // Houses do not move (for now..)
 
     // If any new service was detected, force a scan now.
     //
@@ -178,6 +197,10 @@ void housealmanac_location_background (time_t now) {
     }
 
     if (now <= latestdiscovery + 10) return;
+    if (HouseGpsFix) {
+        if (HouseGpsFix >= 2) return; // User supplied the coordinates.
+        if (now < latestdiscovery + 300) return; // Handle the RV use case..
+    }
     latestdiscovery = now;
 
     DEBUG ("Proceeding with clock service discovery\n");

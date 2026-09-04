@@ -23,5 +23,7 @@
 int         housealmanac_location_ready (void);
 double      housealmanac_location_lat (void);
 double      housealmanac_location_long (void);
-void        housealmanac_location_background (time_t now);
+
+void housealmanac_location_initialize (int argc, const char **argv);
+void housealmanac_location_background (time_t now);
 

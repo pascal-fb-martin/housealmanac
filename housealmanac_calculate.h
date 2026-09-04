@@ -20,12 +20,7 @@
  * housealmanac_calculate.c - Calculate sunset and sunrise time locally
  */
 
-void housealmanac_calculate_location (double latitude, double longitude);
-
-const char *housealmanac_calculate_today (time_t now,
-                                          time_t *rise, time_t *set);
-const char *housealmanac_calculate_tonight (time_t now,
-                                            time_t *set, time_t *rise);
-
-const char *housealmanac_calculate_origin (void);
+const char *housealmanac_calculate (const struct tm *date,
+                                    double latitude, double longitude,
+                                    time_t *rise, time_t *set);
 
